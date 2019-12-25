@@ -45,6 +45,8 @@ mkdir $ProjectDir/config
 cp ./script/gpb $ProjectDir/script
 cp ./script/gpb.hrl $ProjectDir/include
 cp ./script/rebar3 $ProjectDir/script
+cp ./script/cli $ProjectDir/script
+cp ./script/cli.erl $ProjectDir/src
 
 ## === creating application header file
 cat > $ProjectDir/include/$AppName.hrl << EOF
@@ -103,7 +105,7 @@ cat > $ProjectDir/rebar.config << EOF
                                {lager_truncation_size, 10240}]},
                    {relx, [
                            {release,
-                            {$AppName, "$AppName-version"},
+                            {$AppName, {cmd, "cat ./Version"}},
                             [ssl,
                              mnesia,
                              recon,
@@ -113,8 +115,12 @@ cat > $ProjectDir/rebar.config << EOF
                              {observer, load},
                              {runtime_tools, load}
                             ]},
+                           {extended_start_script_extensions, [{cli, "extensions/cli"}]},
+                           {generate_start_script, true},
+                           {extended_start_script, true},
+                           {overlay, [{copy, "script/cli", "bin/extensions/cli"}]},
                            {dev_mode, true},
-                           {include_erts, false},
+                           {include_erts, true},
                            {vm_args, "config/dev.vm.args"},
                            {sys_config, "config/dev.sys.config"}
                           ]}
@@ -125,7 +131,7 @@ cat > $ProjectDir/rebar.config << EOF
                                  {lager_truncation_size, 10240}]},
                      {relx, [
                              {release,
-                              {$AppName, "$AppName-version"},
+                              {$AppName, {cmd, "cat ./Version"}},
                               [ssl,
                                mnesia,
                                recon,
@@ -135,6 +141,10 @@ cat > $ProjectDir/rebar.config << EOF
                                {observer, load},
                                {runtime_tools, load}
                               ]},
+                             {extended_start_script_extensions, [{cli, "extensions/cli"}]},
+                             {generate_start_script, true},
+                             {extended_start_script, true},
+                             {overlay, [{copy, "script/cli", "bin/extensions/cli"}]},
                              {dev_mode, false},
                              {include_erts, true},
                              {vm_args, "config/stage.vm.args"},
@@ -146,7 +156,7 @@ cat > $ProjectDir/rebar.config << EOF
                                 {d, 'PROFILE_PROD'}]},
                     {relx, [
                             {release,
-                             {$AppName, "$AppName-version"},
+                             {$AppName, {cmd, "cat ./Version"}},
                              [ssl,
                               mnesia,
                               recon,
@@ -155,6 +165,10 @@ cat > $ProjectDir/rebar.config << EOF
                              ]},
                             {overlay,
                              [{copy, "priv", "priv"}]},
+                            {extended_start_script_extensions, [{cli, "extensions/cli"}]},
+                            {generate_start_script, true},
+                            {extended_start_script, true},
+                            {overlay, [{copy, "script/cli", "bin/extensions/cli"}]},
                             {dev_mode, false},
                             {include_erts, true},
                             {vm_args, "config/prod.vm.args"},
@@ -165,7 +179,7 @@ cat > $ProjectDir/rebar.config << EOF
 
 {relx, [
         {release,
-         {$AppName, "$AppName-version"},
+         {$AppName, {cmd, "cat ./Version"}},
          [ssl,
           mnesia,
           recon,
@@ -177,6 +191,10 @@ cat > $ProjectDir/rebar.config << EOF
          ]},
         {overlay,
          [{copy, "priv", "priv"}]},
+         {extended_start_script_extensions, [{cli, "extensions/cli"}]},
+        {generate_start_script, true},
+        {extended_start_script, true},
+        {overlay, [{copy, "script/cli", "bin/extensions/cli"}]},
         {dev_mode, true},
         {include_erts, false},
         {extended_start_script, true},
@@ -299,33 +317,31 @@ EOF
 ## === creating EVM profiling files
 cat > $ProjectDir/config/test.vm.args << EOF
 ## Name of the node
--name $AppName-test@127.0.0.1
+-sname $AppName-test@localhost
 ## Cookie for distributed erlang
 -setcookie $AppName_cookie
 EOF
 cat > $ProjectDir/config/dev.vm.args << EOF
 ## Name of the node
--name $AppName-dev@127.0.0.1
+-sname $AppName-dev@localhost
 ## Cookie for distributed erlang
 -setcookie $AppName-cookie
 EOF
 cat > $ProjectDir/config/stage.vm.args << EOF
 ## Name of the node
--name $AppName-stage@$AppName-stage-ip
+-sname $AppName-stage@localhost
 ## Cookie for distributed erlang
 -setcookie $AppName-cookie
 EOF
 cat > $ProjectDir/config/prod.vm.args << EOF
 ## Name of the node
--name $AppName-prod@$AppName-prod-ip
+-sname $AppName-prod@localhost
 ## Cookie for distributed erlang
 -setcookie $AppName-cookie
 EOF
 
 ## === creating version file
-cat > $ProjectDir/Version << EOF
-$AppVersion
-EOF
+echo -n $AppVersion > $ProjectDir/Version
 
 ## === creating sample protobuff files
 cat > $ProjectDir/proto/$AppName.sample.type.proto << EOF
@@ -377,18 +393,14 @@ console-dev:
 	_build/dev/rel/$AppName/bin/$AppName console
 
 rel-prod:
-	\$(SED) -i 's/{$AppName, "$AppName-version"}/{$AppName, "\$(VER)"}/g' ./rebar.config
 	\$(PWD)/script/rebar3 as prod release
 	\$(PWD)/script/rebar3 as prod tar
-	\$(SED) -i 's/{$AppName, "\$(VER)"}/{$AppName, "$AppName-version"}/g' ./rebar.config
     #\$(SCP) -P 8522 \$(PWD)/_build/prod/rel/$AppName/$AppName-\$(VER).tar.gz \$(FS)
 ${TAB}@printf "\nApplication: %s\n" \$(PWD)/_build/prod/rel/$AppName/$AppName-\$(VER).tar.gz
 
 rel-stage:
-	\$(SED) -i 's/{$AppName, "$AppName-version"}/{$AppName, "\$(VER)"}/g' ./rebar.config
 	\$(PWD)/script/rebar3 as stage release
 	\$(PWD)/script/rebar3 as stage tar
-	\$(SED) -i 's/{$AppName, "\$(VER)"}/{$AppName, "$AppName-version"}/g' ./rebar.config
     #\$(SCP) -P 8522 \$(PWD)/_build/stage/rel/$AppName/$AppName-\$(VER).tar.gz \$(FS)
 ${TAB}@printf "\nApplication: %s\n" \$(PWD)/_build/stage/rel/$AppName/$AppName-\$(VER).tar.gz
 

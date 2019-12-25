@@ -43,3 +43,14 @@ You can upload it on stage environment.
 	%make rel-prod
 take note of the last line, it informs you about `Tarball` path.
 You can upload it on production environment.
+
+6-for start as a service and command line guide
+----
+for example for dev release :
+```
+./_build/dev/rel/Appname/bin/Appname start
+./_build/dev/rel/Appname/bin/Appname ping
+./_build/dev/rel/Appname/bin/Appname cli test
+./_build/dev/rel/Appname/bin/Appname remote_console
+./_build/dev/rel/Appname/bin/Appname stop
+```
